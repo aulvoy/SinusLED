@@ -1,16 +1,13 @@
 #include <Arduino.h>
-#include <FastLED.h>
+#include <NeoPixelBus.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
 
 // Hent alle login/passord fra passord.h (den blir ikke sendt opp til github)
 #include <passord.h>
 
-#define ANTALL_LED 300          //Totalt antall LED på stripen
-#define ANTALL_LED_PROSENT 3    //Hvor mange LED per prosent
-#define DATA_PIN 2
-
-CRGB leds[ANTALL_LED];
+#define ANTALL_LED 100          //Totalt antall LED på stripen
+#define DATA_PIN 21
 
 const char* mqtt_topic = "Monolitten";
 
@@ -19,6 +16,15 @@ int LysAntallLED;               // Antall LED som skal lyse, kalkuleres ut fra p
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+NeoPixelBus<NeoRgbwFeature, Neo800KbpsMethod> strip(ANTALL_LED, DATA_PIN);
+
+RgbwColor red(255, 0, 0, 0);
+RgbwColor green(0, 255, 0, 0);
+RgbwColor blue(0, 0, 255, 0);
+RgbwColor white(255, 255, 255, 0);
+RgbwColor wwhite(255, 255, 255, 255);
+RgbwColor black(0);
 
 long lastMsg = 0;
 char msg[50];
@@ -60,7 +66,7 @@ void callback(char* topic, byte* message, unsigned int length) {
     Serial.print(messageAntallLEDs);
     Serial.print("\n");
     LysProsent = messageAntallLEDs.toInt();
-    LysAntallLED = LysProsent * ANTALL_LED_PROSENT;
+    LysAntallLED = LysProsent;
     Serial.print("Antall LED ");
     Serial.print(String(LysAntallLED));
     Serial.print("\n");
@@ -84,10 +90,9 @@ void reconnect() {
 
 void setup() {
   delay(2000);
-  FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, ANTALL_LED);
-  FastLED.setBrightness(50);
-  FastLED.clear();
-  FastLED.show();
+  strip.Begin();
+  strip.Show();
+  
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -99,17 +104,12 @@ void loop() {
     reconnect();
   }
   client.loop();
-
-  long now = millis();
-  if (now - lastMsg > 500) {
-    lastMsg = now;
-    for(int i = 0; i < ANTALL_LED; i++) {
+  for(int i = 0; i < ANTALL_LED; i++) {
       if (i>LysAntallLED-1) {
-        leds[i] = CRGB::Black;
+        strip.SetPixelColor(i, black);
       } else {
-        leds[i] = CRGB::White;
+        strip.SetPixelColor(i, wwhite);
       }
-    }
-    FastLED.show();
   }
+    strip.Show(); 
 }
